@@ -4,34 +4,40 @@ const uri = process.env.MONGODB_URI;
 const dbName = process.env.MONGODB_DATABASE || "bibliodrop";
 
 if (!uri) {
-  throw new Error("MONGODB_URI is not defined in .env");
+  throw new Error("MONGODB_URI is not defined");
 }
 
 const client = new MongoClient(uri);
 
-let database;
+let db;
 
 async function connectDB() {
   try {
     await client.connect();
 
-    database = client.db(dbName);
+    db = client.db(dbName);
 
     console.log("MongoDB connected successfully");
 
-    return database;
+    return db;
   } catch (error) {
-    console.error("MongoDB connection failed:", error.message);
+    console.error(
+      "MongoDB connection failed:",
+      error.message
+    );
+
     process.exit(1);
   }
 }
 
 function getDB() {
-  if (!database) {
-    throw new Error("Database is not connected");
+  if (!db) {
+    throw new Error(
+      "Database is not connected"
+    );
   }
 
-  return database;
+  return db;
 }
 
 module.exports = {
