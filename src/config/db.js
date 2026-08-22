@@ -1,10 +1,13 @@
 const { MongoClient } = require("mongodb");
 
 const uri = process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_DATABASE || "bibliodrop";
+const dbName =
+  process.env.MONGODB_DATABASE || "bibliodrop";
 
 if (!uri) {
-  throw new Error("MONGODB_URI is not defined");
+  throw new Error(
+    "MONGODB_URI is not defined"
+  );
 }
 
 const client = new MongoClient(uri);
@@ -17,7 +20,9 @@ async function connectDB() {
 
     db = client.db(dbName);
 
-    console.log("MongoDB connected successfully");
+    console.log(
+      "MongoDB connected successfully"
+    );
 
     return db;
   } catch (error) {
@@ -26,7 +31,7 @@ async function connectDB() {
       error.message
     );
 
-    process.exit(1);
+    throw error;
   }
 }
 
