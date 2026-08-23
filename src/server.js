@@ -1,11 +1,15 @@
 require("dotenv").config();
-const bookRoutes = require("./routes/bookRoutes");
+
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
+const bookRoutes = require("./routes/bookRoutes");
+const userRoutes = require("./routes/user.routes");
+
 const {
   connectDB,
+  getDB,
 } = require("./config/db");
 
 const {
@@ -16,13 +20,56 @@ const {
   toNodeHandler,
 } = require("better-auth/node");
 
-const userRoutes =
-  require("./routes/user.routes");
-
 const app = express();
 
-const PORT =
-  process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
+
+// ==========================================
+// MongoDB Indexes
+// ==========================================
+
+async function createBookIndexes() {
+  try {
+    const db = getDB();
+
+    const books = db.collection("books");
+
+    // 1. Approval status + newest books
+    await books.createIndex({
+      approvalStatus: 1,
+      createdAt: -1,
+    });
+
+    // 2. Category + approval status
+    await books.createIndex({
+      category: 1,
+      approvalStatus: 1,
+    });
+
+    // 3. Status + approval status
+    await books.createIndex({
+      status: 1,
+      approvalStatus: 1,
+    });
+
+    // 4. Delivery fee
+    await books.createIndex({
+      deliveryFee: 1,
+    });
+
+    // 5. Librarian ID
+    await books.createIndex({
+      librarianId: 1,
+    });
+
+    console.log("Book indexes created successfully");
+  } catch (error) {
+    console.error(
+      "Failed to create book indexes:",
+      error
+    );
+  }
+}
 
 // ==========================================
 // Middleware
@@ -33,7 +80,6 @@ app.use(
     origin:
       process.env.CLIENT_URL ||
       "http://localhost:3000",
-
     credentials: true,
   })
 );
@@ -42,6 +88,9 @@ app.use(express.json());
 
 app.use(cookieParser());
 
+// ==========================================
+// Book Routes
+// ==========================================
 
 app.use(
   "/api/books",
@@ -54,44 +103,65 @@ app.use(
 
 async function startServer() {
   try {
+    // ========================================
     // 1. Connect MongoDB
+    // ========================================
+
     await connectDB();
+
+    // ========================================
+    // 2. Create MongoDB Indexes
+    // ========================================
+
+    await createBookIndexes();
+
+    // ========================================
+    // 3. Initialize Better Auth
+    // ========================================
 
     console.log(
       "Initializing Better Auth..."
     );
 
-    // 2. Create Better Auth
     const auth = createAuth();
 
-    // 3. Better Auth routes
+    // ========================================
+    // 4. Better Auth Routes
+    // ========================================
+
     app.all(
       "/api/auth/*splat",
       toNodeHandler(auth)
     );
 
     // ========================================
-    // Normal Routes
+    // 5. Root Route
     // ========================================
 
     app.get("/", (req, res) => {
       res.json({
         success: true,
-        message:
-          "Bookora API is running",
+        message: "Bookora API is running",
       });
     });
+
+    // ========================================
+    // 6. Health Check
+    // ========================================
 
     app.get(
       "/api/health",
       (req, res) => {
         res.json({
           success: true,
-          message:
-            "Bookora API is healthy",
+          message: "Bookora API is healthy",
         });
       }
     );
+
+    // ========================================
+    // 7. User Routes
+    // ========================================
 
     app.use(
       "/api/users",
@@ -99,7 +169,7 @@ async function startServer() {
     );
 
     // ========================================
-    // 404
+    // 8. 404 Handler
     // ========================================
 
     app.use((req, res) => {
@@ -110,7 +180,7 @@ async function startServer() {
     });
 
     // ========================================
-    // Listen
+    // 9. Start Server
     // ========================================
 
     app.listen(PORT, () => {
@@ -127,5 +197,9 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+// ==========================================
+// Start Application
+// ==========================================
 
 startServer();

@@ -1,8 +1,10 @@
 const { MongoClient } = require("mongodb");
 
 const uri = process.env.MONGODB_URI;
+
 const dbName =
-  process.env.MONGODB_DATABASE || "bibliodrop";
+  process.env.MONGODB_DATABASE ||
+  "bibliodrop";
 
 if (!uri) {
   throw new Error(
@@ -13,6 +15,10 @@ if (!uri) {
 const client = new MongoClient(uri);
 
 let db;
+
+// ==========================================
+// Connect MongoDB
+// ==========================================
 
 async function connectDB() {
   try {
@@ -35,6 +41,10 @@ async function connectDB() {
   }
 }
 
+// ==========================================
+// Get Database
+// ==========================================
+
 function getDB() {
   if (!db) {
     throw new Error(
@@ -44,6 +54,10 @@ function getDB() {
 
   return db;
 }
+
+// ==========================================
+// Exports
+// ==========================================
 
 module.exports = {
   connectDB,

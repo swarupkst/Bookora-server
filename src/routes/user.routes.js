@@ -6,16 +6,20 @@ const {
 } = require("../models/user.model");
 
 const {
-  requireAuth,
+  authenticate,
 } = require(
-  "../middleware/auth.middleware"
+  "../middleware/authMiddleware"
 );
 
 const router = express.Router();
 
+// ========================================
+// CREATE USER PROFILE
+// ========================================
+
 router.post(
   "/profile",
-  requireAuth,
+  authenticate,
   async (req, res) => {
     try {
       const {
@@ -25,8 +29,9 @@ router.post(
         role,
       } = req.body;
 
+      // Better Auth user ID
       const authUserId =
-        req.auth.sub;
+        req.user.id;
 
       if (!name || !email) {
         return res.status(400).json({
@@ -48,6 +53,20 @@ router.post(
         });
       }
 
+      const existingUser =
+        await findUserByAuthId(
+          authUserId
+        );
+
+      if (existingUser) {
+        return res.status(200).json({
+          success: true,
+          message:
+            "User profile already exists.",
+          user: existingUser,
+        });
+      }
+
       const user =
         await createUserProfile({
           authUserId,
@@ -62,7 +81,10 @@ router.post(
         user,
       });
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Create profile error:",
+        error
+      );
 
       return res.status(500).json({
         success: false,

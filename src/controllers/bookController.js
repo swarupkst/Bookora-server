@@ -1,7 +1,7 @@
 const { ObjectId } = require("mongodb");
 
 const {
-  getDBConnection,
+  getDB,
 } = require("../config/db");
 
 const {
@@ -18,7 +18,7 @@ const {
 
 async function getPublicBooks(req, res) {
   try {
-    const db = getDBConnection();
+    const db = getDB();
 
     const {
       search = "",
@@ -45,7 +45,10 @@ async function getPublicBooks(req, res) {
       approvalStatus: "published",
     };
 
+    // ----------------------------------------
     // Search
+    // ----------------------------------------
+
     if (search.trim()) {
       query.$or = [
         {
@@ -63,18 +66,30 @@ async function getPublicBooks(req, res) {
       ];
     }
 
+    // ----------------------------------------
     // Category
+    // ----------------------------------------
+
     if (category.trim()) {
       query.category = category.trim();
     }
 
+    // ----------------------------------------
     // Availability
+    // ----------------------------------------
+
     if (status.trim()) {
       query.status = status.trim();
     }
 
-    // Delivery fee
-    if (minFee !== "" || maxFee !== "") {
+    // ----------------------------------------
+    // Delivery Fee
+    // ----------------------------------------
+
+    if (
+      minFee !== "" ||
+      maxFee !== ""
+    ) {
       query.deliveryFee = {};
 
       if (minFee !== "") {
@@ -88,7 +103,10 @@ async function getPublicBooks(req, res) {
       }
     }
 
+    // ----------------------------------------
     // Sorting
+    // ----------------------------------------
+
     let sortOption = {
       createdAt: -1,
     };
@@ -116,6 +134,10 @@ async function getPublicBooks(req, res) {
         title: 1,
       };
     }
+
+    // ----------------------------------------
+    // Pagination
+    // ----------------------------------------
 
     const skip =
       (currentPage - 1) * perPage;
@@ -174,7 +196,7 @@ async function getPublicBooks(req, res) {
 
 async function getBookById(req, res) {
   try {
-    const db = getDBConnection();
+    const db = getDB();
 
     const { id } = req.params;
 
@@ -223,7 +245,7 @@ async function getBookById(req, res) {
 
 async function createBook(req, res) {
   try {
-    const db = getDBConnection();
+    const db = getDB();
 
     const {
       title,
@@ -288,13 +310,12 @@ async function createBook(req, res) {
 
       status: "available",
 
-      // IMPORTANT:
-      // Every new book starts here.
-      approvalStatus:
-        "pending",
+      // Every new book requires
+      // admin approval.
+      approvalStatus: "pending",
 
       librarianId: new ObjectId(
-        req.user.userId
+        req.user.id
       ),
 
       librarianName:
@@ -316,6 +337,7 @@ async function createBook(req, res) {
       success: true,
       message:
         "Book submitted for admin approval",
+
       data: {
         ...book,
         _id: result.insertedId,
@@ -340,7 +362,7 @@ async function createBook(req, res) {
 
 async function getMyBooks(req, res) {
   try {
-    const db = getDBConnection();
+    const db = getDB();
 
     const books =
       await db
@@ -348,7 +370,7 @@ async function getMyBooks(req, res) {
         .find({
           librarianId:
             new ObjectId(
-              req.user.userId
+              req.user.id
             ),
         })
         .sort({
@@ -380,7 +402,7 @@ async function getMyBooks(req, res) {
 
 async function updateBook(req, res) {
   try {
-    const db = getDBConnection();
+    const db = getDB();
 
     const { id } = req.params;
 
@@ -407,7 +429,7 @@ async function updateBook(req, res) {
 
     if (
       book.librarianId.toString() !==
-      req.user.userId
+      req.user.id
     ) {
       return res.status(403).json({
         success: false,
@@ -518,7 +540,7 @@ async function updateBook(req, res) {
 
 async function deleteBook(req, res) {
   try {
-    const db = getDBConnection();
+    const db = getDB();
 
     const { id } = req.params;
 
@@ -545,7 +567,7 @@ async function deleteBook(req, res) {
 
     const isOwner =
       book.librarianId.toString() ===
-      req.user.userId;
+      req.user.id;
 
     const isAdmin =
       req.user.role === "admin";
@@ -592,7 +614,7 @@ async function unpublishBook(
   res
 ) {
   try {
-    const db = getDBConnection();
+    const db = getDB();
 
     const { id } = req.params;
 
@@ -619,7 +641,7 @@ async function unpublishBook(
 
     if (
       book.librarianId.toString() !==
-      req.user.userId
+      req.user.id
     ) {
       return res.status(403).json({
         success: false,
@@ -682,7 +704,7 @@ async function getPendingBooks(
   res
 ) {
   try {
-    const db = getDBConnection();
+    const db = getDB();
 
     const books =
       await db
@@ -723,7 +745,7 @@ async function approveBook(
   res
 ) {
   try {
-    const db = getDBConnection();
+    const db = getDB();
 
     const { id } = req.params;
 
@@ -793,7 +815,7 @@ async function getAllBooks(
   res
 ) {
   try {
-    const db = getDBConnection();
+    const db = getDB();
 
     const books =
       await db
@@ -831,7 +853,7 @@ async function adminUnpublishBook(
   res
 ) {
   try {
-    const db = getDBConnection();
+    const db = getDB();
 
     const { id } = req.params;
 
@@ -853,7 +875,9 @@ async function adminUnpublishBook(
             $set: {
               approvalStatus:
                 "unpublished",
-              updatedAt: new Date(),
+
+              updatedAt:
+                new Date(),
             },
           }
         );
@@ -883,6 +907,10 @@ async function adminUnpublishBook(
     });
   }
 }
+
+// ----------------------------------------
+// EXPORTS
+// ----------------------------------------
 
 module.exports = {
   getPublicBooks,

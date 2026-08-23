@@ -1,13 +1,18 @@
 const { betterAuth } = require("better-auth");
+
 const {
   mongodbAdapter,
 } = require("better-auth/adapters/mongodb");
 
-const { getDB } = require("./db");
+const {
+  getDB,
+} = require("./db");
 
 function createAuth() {
   return betterAuth({
-    database: mongodbAdapter(getDB()),
+    database: mongodbAdapter(
+      getDB()
+    ),
 
     emailAndPassword: {
       enabled: true,
