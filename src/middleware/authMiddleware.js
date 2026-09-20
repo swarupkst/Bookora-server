@@ -16,7 +16,6 @@ async function authenticate(
   next
 ) {
   try {
-    // Create Better Auth instance
     const auth = createAuth();
 
     // Get Better Auth session
@@ -25,7 +24,6 @@ async function authenticate(
         headers: req.headers,
       });
 
-    // No Better Auth session
     if (!session) {
       return res.status(401).json({
         success: false,
@@ -38,14 +36,12 @@ async function authenticate(
     const authUserId =
       session.user.id;
 
-    // Find custom Bookora profile
+    // Find Bookora profile
     const user =
       await findUserByAuthId(
         authUserId
       );
 
-    // Better Auth account exists,
-    // but Bookora profile does not exist
     if (!user) {
       return res.status(403).json({
         success: false,
@@ -55,19 +51,27 @@ async function authenticate(
     }
 
     // Combine Better Auth user
-    // with Bookora custom profile
+    // + Bookora profile
     req.user = {
       ...session.user,
 
-      // Important:
-      // role comes from custom user profile
+      // Custom Bookora fields
       role: user.role,
 
-      // Keep auth ID available
-      authUserId: authUserId,
+      authUserId:
+        user.authUserId,
+
+      phone: user.phone || "",
+
+      address:
+        user.address || "",
+
+      city: user.city || "",
+
+      profileId: user._id,
     };
 
-    // Store session
+    // Better Auth session
     req.session =
       session.session;
 
@@ -121,10 +125,6 @@ function authorize(...roles) {
     next();
   };
 }
-
-// ========================================
-// EXPORTS
-// ========================================
 
 module.exports = {
   authenticate,

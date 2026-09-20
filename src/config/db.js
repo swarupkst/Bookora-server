@@ -21,6 +21,10 @@ let db;
 // ==========================================
 
 async function connectDB() {
+  if (db) {
+    return db;
+  }
+
   try {
     await client.connect();
 
@@ -48,16 +52,12 @@ async function connectDB() {
 function getDB() {
   if (!db) {
     throw new Error(
-      "Database is not connected"
+      "Database is not connected. Call connectDB() first."
     );
   }
 
   return db;
 }
-
-// ==========================================
-// Exports
-// ==========================================
 
 module.exports = {
   connectDB,

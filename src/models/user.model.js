@@ -4,13 +4,16 @@ function usersCollection() {
   return getDB().collection("users");
 }
 
+// ========================================
+// CREATE USER PROFILE
+// ========================================
+
 async function createUserProfile(data) {
   const collection = usersCollection();
 
-  const existing =
-    await collection.findOne({
-      authUserId: data.authUserId,
-    });
+  const existing = await collection.findOne({
+    authUserId: data.authUserId,
+  });
 
   if (existing) {
     return existing;
@@ -47,6 +50,10 @@ async function createUserProfile(data) {
   };
 }
 
+// ========================================
+// FIND USER BY BETTER AUTH ID
+// ========================================
+
 async function findUserByAuthId(
   authUserId
 ) {
@@ -55,11 +62,19 @@ async function findUserByAuthId(
   });
 }
 
+// ========================================
+// FIND USER BY EMAIL
+// ========================================
+
 async function findUserByEmail(email) {
   return usersCollection().findOne({
     email,
   });
 }
+
+// ========================================
+// EXPORT
+// ========================================
 
 module.exports = {
   createUserProfile,

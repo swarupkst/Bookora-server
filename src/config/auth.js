@@ -8,8 +8,18 @@ const {
   getDB,
 } = require("./db");
 
+let auth;
+
+// ==========================================
+// Create Better Auth
+// ==========================================
+
 function createAuth() {
-  return betterAuth({
+  if (auth) {
+    return auth;
+  }
+
+  auth = betterAuth({
     database: mongodbAdapter(
       getDB()
     ),
@@ -40,6 +50,8 @@ function createAuth() {
         "http://localhost:3000",
     ],
   });
+
+  return auth;
 }
 
 module.exports = {

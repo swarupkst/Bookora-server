@@ -37,7 +37,10 @@ async function getPublicBooks(req, res) {
     );
 
     const perPage = Math.min(
-      Math.max(Number(limit) || 12, 6),
+      Math.max(
+        Number(limit) || 12,
+        6
+      ),
       12
     );
 
@@ -45,10 +48,7 @@ async function getPublicBooks(req, res) {
       approvalStatus: "published",
     };
 
-    // ----------------------------------------
     // Search
-    // ----------------------------------------
-
     if (search.trim()) {
       query.$or = [
         {
@@ -66,26 +66,19 @@ async function getPublicBooks(req, res) {
       ];
     }
 
-    // ----------------------------------------
     // Category
-    // ----------------------------------------
-
     if (category.trim()) {
-      query.category = category.trim();
+      query.category =
+        category.trim();
     }
 
-    // ----------------------------------------
     // Availability
-    // ----------------------------------------
-
     if (status.trim()) {
-      query.status = status.trim();
+      query.status =
+        status.trim();
     }
 
-    // ----------------------------------------
     // Delivery Fee
-    // ----------------------------------------
-
     if (
       minFee !== "" ||
       maxFee !== ""
@@ -103,10 +96,7 @@ async function getPublicBooks(req, res) {
       }
     }
 
-    // ----------------------------------------
     // Sorting
-    // ----------------------------------------
-
     let sortOption = {
       createdAt: -1,
     };
@@ -135,35 +125,37 @@ async function getPublicBooks(req, res) {
       };
     }
 
-    // ----------------------------------------
     // Pagination
-    // ----------------------------------------
-
     const skip =
-      (currentPage - 1) * perPage;
+      (currentPage - 1) *
+      perPage;
 
     const collection =
-      db.collection(BOOK_COLLECTION);
+      db.collection(
+        BOOK_COLLECTION
+      );
 
-    const [books, total] =
-      await Promise.all([
-        collection
-          .find(query)
-          .sort(sortOption)
-          .skip(skip)
-          .limit(perPage)
-          .toArray(),
+    const [
+      books,
+      total,
+    ] = await Promise.all([
+      collection
+        .find(query)
+        .sort(sortOption)
+        .skip(skip)
+        .limit(perPage)
+        .toArray(),
 
-        collection.countDocuments(query),
-      ]);
+      collection.countDocuments(query),
+    ]);
 
-    const totalPages = Math.ceil(
-      total / perPage
-    );
+    const totalPages =
+      Math.ceil(
+        total / perPage
+      );
 
     return res.json({
       success: true,
-
       data: books,
 
       pagination: {
@@ -171,8 +163,11 @@ async function getPublicBooks(req, res) {
         limit: perPage,
         total,
         totalPages,
+
         hasNextPage:
-          currentPage < totalPages,
+          currentPage <
+          totalPages,
+
         hasPreviousPage:
           currentPage > 1,
       },
@@ -185,7 +180,8 @@ async function getPublicBooks(req, res) {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch books",
+      message:
+        "Failed to fetch books",
     });
   }
 }
@@ -194,7 +190,10 @@ async function getPublicBooks(req, res) {
 // GET SINGLE PUBLIC BOOK
 // ----------------------------------------
 
-async function getBookById(req, res) {
+async function getBookById(
+  req,
+  res
+) {
   try {
     const db = getDB();
 
@@ -203,22 +202,27 @@ async function getBookById(req, res) {
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid book ID",
+        message:
+          "Invalid book ID",
       });
     }
 
     const book =
       await db
-        .collection(BOOK_COLLECTION)
+        .collection(
+          BOOK_COLLECTION
+        )
         .findOne({
           _id: new ObjectId(id),
-          approvalStatus: "published",
+          approvalStatus:
+            "published",
         });
 
     if (!book) {
       return res.status(404).json({
         success: false,
-        message: "Book not found",
+        message:
+          "Book not found",
       });
     }
 
@@ -234,7 +238,8 @@ async function getBookById(req, res) {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch book",
+      message:
+        "Failed to fetch book",
     });
   }
 }
@@ -243,9 +248,37 @@ async function getBookById(req, res) {
 // LIBRARIAN: ADD BOOK
 // ----------------------------------------
 
-async function createBook(req, res) {
+async function createBook(
+  req,
+  res
+) {
   try {
     const db = getDB();
+
+    console.log(
+      "CREATE BOOK BODY:",
+      req.body
+    );
+
+    console.log(
+      "CREATE BOOK FILE:",
+      req.file
+        ? {
+            fieldname:
+              req.file.fieldname,
+            originalname:
+              req.file.originalname,
+            mimetype:
+              req.file.mimetype,
+            size:
+              req.file.size,
+          }
+        : null
+    );
+
+    // ----------------------------------------
+    // Validate request body
+    // ----------------------------------------
 
     const {
       title,
@@ -253,14 +286,17 @@ async function createBook(req, res) {
       description,
       category,
       deliveryFee,
-    } = req.body;
+    } = req.body || {};
 
     if (
       !title ||
       !author ||
       !description ||
       !category ||
-      deliveryFee === undefined
+      deliveryFee ===
+        undefined ||
+      deliveryFee === null ||
+      deliveryFee === ""
     ) {
       return res.status(400).json({
         success: false,
@@ -268,6 +304,10 @@ async function createBook(req, res) {
           "All required fields must be provided",
       });
     }
+
+    // ----------------------------------------
+    // Validate image
+    // ----------------------------------------
 
     if (!req.file) {
       return res.status(400).json({
@@ -277,7 +317,13 @@ async function createBook(req, res) {
       });
     }
 
-    const fee = Number(deliveryFee);
+    // ----------------------------------------
+    // Validate delivery fee
+    // ----------------------------------------
+
+    const fee = Number(
+      deliveryFee
+    );
 
     if (
       Number.isNaN(fee) ||
@@ -290,33 +336,48 @@ async function createBook(req, res) {
       });
     }
 
+    // ----------------------------------------
+    // Upload image
+    // ----------------------------------------
+
     const coverImage =
       await uploadToImgBB(
         req.file.buffer
       );
 
-    const now = new Date();
+    // ----------------------------------------
+    // Create book
+    // ----------------------------------------
+
+    const now =
+      new Date();
 
     const book = {
       title: title.trim(),
-      author: author.trim(),
-      description: description.trim(),
 
-      category: category.trim(),
+      author:
+        author.trim(),
+
+      description:
+        description.trim(),
+
+      category:
+        category.trim(),
 
       coverImage,
 
       deliveryFee: fee,
 
-      status: "available",
+      status:
+        "available",
 
-      // Every new book requires
-      // admin approval.
-      approvalStatus: "pending",
+      approvalStatus:
+        "pending",
 
-      librarianId: new ObjectId(
-        req.user.id
-      ),
+      librarianId:
+        new ObjectId(
+          req.user.id
+        ),
 
       librarianName:
         req.user.name || "",
@@ -325,22 +386,31 @@ async function createBook(req, res) {
         req.user.email || "",
 
       createdAt: now,
+
       updatedAt: now,
     };
 
+    // ----------------------------------------
+    // Insert MongoDB
+    // ----------------------------------------
+
     const result =
       await db
-        .collection(BOOK_COLLECTION)
+        .collection(
+          BOOK_COLLECTION
+        )
         .insertOne(book);
 
     return res.status(201).json({
       success: true,
+
       message:
         "Book submitted for admin approval",
 
       data: {
         ...book,
-        _id: result.insertedId,
+        _id:
+          result.insertedId,
       },
     });
   } catch (error) {
@@ -351,7 +421,8 @@ async function createBook(req, res) {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to create book",
+      message:
+        "Failed to create book",
     });
   }
 }
@@ -360,13 +431,18 @@ async function createBook(req, res) {
 // LIBRARIAN: MY BOOKS
 // ----------------------------------------
 
-async function getMyBooks(req, res) {
+async function getMyBooks(
+  req,
+  res
+) {
   try {
     const db = getDB();
 
     const books =
       await db
-        .collection(BOOK_COLLECTION)
+        .collection(
+          BOOK_COLLECTION
+        )
         .find({
           librarianId:
             new ObjectId(
@@ -400,7 +476,10 @@ async function getMyBooks(req, res) {
 // LIBRARIAN: UPDATE BOOK
 // ----------------------------------------
 
-async function updateBook(req, res) {
+async function updateBook(
+  req,
+  res
+) {
   try {
     const db = getDB();
 
@@ -409,13 +488,16 @@ async function updateBook(req, res) {
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid book ID",
+        message:
+          "Invalid book ID",
       });
     }
 
     const book =
       await db
-        .collection(BOOK_COLLECTION)
+        .collection(
+          BOOK_COLLECTION
+        )
         .findOne({
           _id: new ObjectId(id),
         });
@@ -423,7 +505,8 @@ async function updateBook(req, res) {
     if (!book) {
       return res.status(404).json({
         success: false,
-        message: "Book not found",
+        message:
+          "Book not found",
       });
     }
 
@@ -447,33 +530,47 @@ async function updateBook(req, res) {
     } = req.body;
 
     const updateData = {
-      updatedAt: new Date(),
+      updatedAt:
+        new Date(),
     };
 
-    if (title !== undefined) {
+    if (
+      title !== undefined
+    ) {
       updateData.title =
         title.trim();
     }
 
-    if (author !== undefined) {
+    if (
+      author !== undefined
+    ) {
       updateData.author =
         author.trim();
     }
 
-    if (description !== undefined) {
+    if (
+      description !==
+      undefined
+    ) {
       updateData.description =
         description.trim();
     }
 
-    if (category !== undefined) {
+    if (
+      category !== undefined
+    ) {
       updateData.category =
         category.trim();
     }
 
-    if (deliveryFee !== undefined) {
-      const fee = Number(
-        deliveryFee
-      );
+    if (
+      deliveryFee !==
+      undefined
+    ) {
+      const fee =
+        Number(
+          deliveryFee
+        );
 
       if (
         Number.isNaN(fee) ||
@@ -486,7 +583,8 @@ async function updateBook(req, res) {
         });
       }
 
-      updateData.deliveryFee = fee;
+      updateData.deliveryFee =
+        fee;
     }
 
     if (req.file) {
@@ -497,27 +595,36 @@ async function updateBook(req, res) {
     }
 
     await db
-      .collection(BOOK_COLLECTION)
+      .collection(
+        BOOK_COLLECTION
+      )
       .updateOne(
         {
-          _id: new ObjectId(id),
+          _id:
+            new ObjectId(id),
         },
         {
-          $set: updateData,
+          $set:
+            updateData,
         }
       );
 
     const updatedBook =
       await db
-        .collection(BOOK_COLLECTION)
+        .collection(
+          BOOK_COLLECTION
+        )
         .findOne({
-          _id: new ObjectId(id),
+          _id:
+            new ObjectId(id),
         });
 
     return res.json({
       success: true,
+
       message:
         "Book updated successfully",
+
       data: updatedBook,
     });
   } catch (error) {
@@ -538,7 +645,10 @@ async function updateBook(req, res) {
 // LIBRARIAN: DELETE BOOK
 // ----------------------------------------
 
-async function deleteBook(req, res) {
+async function deleteBook(
+  req,
+  res
+) {
   try {
     const db = getDB();
 
@@ -547,21 +657,26 @@ async function deleteBook(req, res) {
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid book ID",
+        message:
+          "Invalid book ID",
       });
     }
 
     const book =
       await db
-        .collection(BOOK_COLLECTION)
+        .collection(
+          BOOK_COLLECTION
+        )
         .findOne({
-          _id: new ObjectId(id),
+          _id:
+            new ObjectId(id),
         });
 
     if (!book) {
       return res.status(404).json({
         success: false,
-        message: "Book not found",
+        message:
+          "Book not found",
       });
     }
 
@@ -570,9 +685,13 @@ async function deleteBook(req, res) {
       req.user.id;
 
     const isAdmin =
-      req.user.role === "admin";
+      req.user.role ===
+      "admin";
 
-    if (!isOwner && !isAdmin) {
+    if (
+      !isOwner &&
+      !isAdmin
+    ) {
       return res.status(403).json({
         success: false,
         message:
@@ -581,9 +700,12 @@ async function deleteBook(req, res) {
     }
 
     await db
-      .collection(BOOK_COLLECTION)
+      .collection(
+        BOOK_COLLECTION
+      )
       .deleteOne({
-        _id: new ObjectId(id),
+        _id:
+          new ObjectId(id),
       });
 
     return res.json({
@@ -621,21 +743,26 @@ async function unpublishBook(
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid book ID",
+        message:
+          "Invalid book ID",
       });
     }
 
     const book =
       await db
-        .collection(BOOK_COLLECTION)
+        .collection(
+          BOOK_COLLECTION
+        )
         .findOne({
-          _id: new ObjectId(id),
+          _id:
+            new ObjectId(id),
         });
 
     if (!book) {
       return res.status(404).json({
         success: false,
-        message: "Book not found",
+        message:
+          "Book not found",
       });
     }
 
@@ -662,16 +789,21 @@ async function unpublishBook(
     }
 
     await db
-      .collection(BOOK_COLLECTION)
+      .collection(
+        BOOK_COLLECTION
+      )
       .updateOne(
         {
-          _id: new ObjectId(id),
+          _id:
+            new ObjectId(id),
         },
         {
           $set: {
             approvalStatus:
               "unpublished",
-            updatedAt: new Date(),
+
+            updatedAt:
+              new Date(),
           },
         }
       );
@@ -708,7 +840,9 @@ async function getPendingBooks(
 
     const books =
       await db
-        .collection(BOOK_COLLECTION)
+        .collection(
+          BOOK_COLLECTION
+        )
         .find({
           approvalStatus:
             "pending",
@@ -752,16 +886,21 @@ async function approveBook(
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid book ID",
+        message:
+          "Invalid book ID",
       });
     }
 
     const result =
       await db
-        .collection(BOOK_COLLECTION)
+        .collection(
+          BOOK_COLLECTION
+        )
         .updateOne(
           {
-            _id: new ObjectId(id),
+            _id:
+              new ObjectId(id),
+
             approvalStatus:
               "pending",
           },
@@ -779,7 +918,9 @@ async function approveBook(
           }
         );
 
-    if (!result.matchedCount) {
+    if (
+      !result.matchedCount
+    ) {
       return res.status(404).json({
         success: false,
         message:
@@ -819,7 +960,9 @@ async function getAllBooks(
 
     const books =
       await db
-        .collection(BOOK_COLLECTION)
+        .collection(
+          BOOK_COLLECTION
+        )
         .find({})
         .sort({
           createdAt: -1,
@@ -860,16 +1003,20 @@ async function adminUnpublishBook(
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid book ID",
+        message:
+          "Invalid book ID",
       });
     }
 
     const result =
       await db
-        .collection(BOOK_COLLECTION)
+        .collection(
+          BOOK_COLLECTION
+        )
         .updateOne(
           {
-            _id: new ObjectId(id),
+            _id:
+              new ObjectId(id),
           },
           {
             $set: {
@@ -882,10 +1029,13 @@ async function adminUnpublishBook(
           }
         );
 
-    if (!result.matchedCount) {
+    if (
+      !result.matchedCount
+    ) {
       return res.status(404).json({
         success: false,
-        message: "Book not found",
+        message:
+          "Book not found",
       });
     }
 

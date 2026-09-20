@@ -6,12 +6,53 @@ const {
 } = require("../models/user.model");
 
 const {
-  authenticate,
-} = require(
-  "../middleware/authMiddleware"
-);
+  createAuth,
+} = require("../config/auth");
 
 const router = express.Router();
+
+// ========================================
+// REQUIRE BETTER AUTH SESSION
+// ========================================
+
+async function requireAuth(
+  req,
+  res,
+  next
+) {
+  try {
+    const auth = createAuth();
+
+    const session =
+      await auth.api.getSession({
+        headers: req.headers,
+      });
+
+    if (!session) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Authentication required.",
+      });
+    }
+
+    req.auth = session;
+    req.user = session.user;
+
+    next();
+  } catch (error) {
+    console.error(
+      "Session authentication error:",
+      error
+    );
+
+    return res.status(401).json({
+      success: false,
+      message:
+        "Invalid or expired session.",
+    });
+  }
+}
 
 // ========================================
 // CREATE USER PROFILE
@@ -19,7 +60,7 @@ const router = express.Router();
 
 router.post(
   "/profile",
-  authenticate,
+  requireAuth,
   async (req, res) => {
     try {
       const {
@@ -29,7 +70,8 @@ router.post(
         role,
       } = req.body;
 
-      // Better Auth user ID
+      // NEVER trust authUserId
+      // from frontend.
       const authUserId =
         req.user.id;
 
@@ -53,6 +95,7 @@ router.post(
         });
       }
 
+      // Check existing profile
       const existingUser =
         await findUserByAuthId(
           authUserId
@@ -67,17 +110,25 @@ router.post(
         });
       }
 
+      // Create profile
       const user =
         await createUserProfile({
           authUserId,
+
           name,
+
           email,
-          image,
+
+          image:
+            image || "",
+
           role,
         });
 
       return res.status(201).json({
         success: true,
+        message:
+          "User profile created successfully.",
         user,
       });
     } catch (error) {
