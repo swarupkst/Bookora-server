@@ -38,18 +38,21 @@ app.get("/api/books", async (req, res) => {
     try {
         const query = {};
 
-        // Filter by bookId
         if (req.query.bookId) {
             query.bookId = req.query.bookId;
         }
 
-        // Filter by status
         if (req.query.status) {
             query.status = req.query.status;
         }
 
+        if (req.query.librarianId) {
+            query.librarianId = req.query.librarianId;
+        }
+
         const books = await bookCollection
             .find(query)
+            .sort({ createdAt: -1 })
             .toArray();
 
         res.status(200).json({
@@ -58,10 +61,7 @@ app.get("/api/books", async (req, res) => {
         });
 
     } catch (error) {
-        console.error(
-            "GET /api/books ERROR:",
-            error
-        );
+        console.error("GET /api/books ERROR:", error);
 
         res.status(500).json({
             success: false,
@@ -115,12 +115,12 @@ app.get("/api/books/:id", async (req, res) => {
 // Add Book
 app.post("/api/books", async (req, res) => {
     try {
-        const book = req.body;
+        const book = {
+            ...req.body,
+            createdAt: new Date(),
+        };
 
-        console.log("Received book:", book);
-
-        const result =
-            await bookCollection.insertOne(book);
+        const result = await bookCollection.insertOne(book);
 
         res.status(201).json({
             success: true,
@@ -129,14 +129,71 @@ app.post("/api/books", async (req, res) => {
         });
 
     } catch (error) {
-        console.error(
-            "POST /api/books ERROR:",
-            error
-        );
+        console.error("POST /api/books ERROR:", error);
 
         res.status(500).json({
             success: false,
             message: "Failed to add book",
+        });
+    }
+});
+
+//delete book 
+
+app.delete("/api/books/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { librarianId } = req.body;
+
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid book ID",
+            });
+        }
+
+        const book = await bookCollection.findOne({
+            _id: new ObjectId(id),
+        });
+
+        if (!book) {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found",
+            });
+        }
+
+        // Only the librarian who added the book can delete it
+        if (book.librarianId !== librarianId) {
+            return res.status(403).json({
+                success: false,
+                message: "You can only delete your own books",
+            });
+        }
+
+        const result = await bookCollection.deleteOne({
+            _id: new ObjectId(id),
+            librarianId: librarianId,
+        });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Book could not be deleted",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Book deleted successfully",
+        });
+
+    } catch (error) {
+        console.error("DELETE /api/books/:id ERROR:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete book",
         });
     }
 });
