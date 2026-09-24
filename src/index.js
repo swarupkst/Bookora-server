@@ -138,6 +138,167 @@ app.post("/api/books", async (req, res) => {
     }
 });
 
+
+
+// Update Book
+app.patch("/api/books/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const {
+            librarianId,
+            title,
+            author,
+            description,
+            quantity,
+            deliveryFee,
+            category,
+            coverImage,
+        } = req.body;
+
+        // Validate MongoDB ObjectId
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid book ID",
+            });
+        }
+
+        // Librarian ID required
+        if (!librarianId) {
+            return res.status(400).json({
+                success: false,
+                message: "Librarian ID is required",
+            });
+        }
+
+        // Find book
+        const book = await bookCollection.findOne({
+            _id: new ObjectId(id),
+        });
+
+        if (!book) {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found",
+            });
+        }
+
+        // Only the librarian who added the book can edit it
+        if (book.librarianId !== librarianId) {
+            return res.status(403).json({
+                success: false,
+                message: "You can only edit your own books",
+            });
+        }
+
+        // Validate required fields
+        if (
+            !title?.trim() ||
+            !author?.trim() ||
+            !description?.trim() ||
+            !category
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "All required fields must be provided",
+            });
+        }
+
+        // Validate quantity
+        const parsedQuantity = Number(quantity);
+
+        if (
+            !Number.isInteger(parsedQuantity) ||
+            parsedQuantity < 1
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Book quantity must be at least 1",
+            });
+        }
+
+        // Validate delivery fee
+        const parsedDeliveryFee = Number(
+            deliveryFee
+        );
+
+        if (
+            Number.isNaN(parsedDeliveryFee) ||
+            parsedDeliveryFee < 0
+        ) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Delivery fee cannot be negative",
+            });
+        }
+
+        // Prepare updated data
+        const updateData = {
+            title: title.trim(),
+            author: author.trim(),
+            description: description.trim(),
+            quantity: parsedQuantity,
+            deliveryFee: parsedDeliveryFee,
+            category,
+            coverImage:
+                coverImage !== undefined
+                    ? coverImage
+                    : book.coverImage,
+            updatedAt: new Date(),
+        };
+
+        // Update book
+        const result =
+            await bookCollection.updateOne(
+                {
+                    _id: new ObjectId(id),
+                    librarianId: librarianId,
+                },
+                {
+                    $set: updateData,
+                }
+            );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Book could not be updated",
+            });
+        }
+
+        // Get updated book
+        const updatedBook =
+            await bookCollection.findOne({
+                _id: new ObjectId(id),
+            });
+
+        res.status(200).json({
+            success: true,
+            message:
+                "Book updated successfully",
+            data: updatedBook,
+        });
+
+    } catch (error) {
+        console.error(
+            "PATCH /api/books/:id ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message:
+                "Failed to update book",
+        });
+    }
+});
+
+
+
 //delete book 
 
 app.delete("/api/books/:id", async (req, res) => {
