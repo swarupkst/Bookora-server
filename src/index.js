@@ -299,6 +299,267 @@ app.patch("/api/books/:id", async (req, res) => {
 
 
 
+// ADMIN - APPROVE PENDING BOOK
+
+
+app.patch("/api/admin/books/:id/approve", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Validate MongoDB ObjectId
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid book ID",
+            });
+        }
+
+        // Find pending book
+        const book = await bookCollection.findOne({
+            _id: new ObjectId(id),
+        });
+
+        if (!book) {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found",
+            });
+        }
+
+        // Only pending books can be approved
+        if (book.status !== "pending") {
+            return res.status(400).json({
+                success: false,
+                message: "Only pending books can be approved",
+            });
+        }
+
+        // Approve book
+        const result = await bookCollection.updateOne(
+            {
+                _id: new ObjectId(id),
+                status: "pending",
+            },
+            {
+                $set: {
+                    status: "approved",
+                    approvedAt: new Date(),
+                    updatedAt: new Date(),
+                },
+            }
+        );
+
+        if (result.modifiedCount === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Book could not be approved",
+            });
+        }
+
+        // Get updated book
+        const updatedBook = await bookCollection.findOne({
+            _id: new ObjectId(id),
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Book approved successfully",
+            data: updatedBook,
+        });
+
+    } catch (error) {
+        console.error(
+            "PATCH /api/admin/books/:id/approve ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to approve book",
+        });
+    }
+});
+
+
+
+
+
+
+        // ADMIN - DELETE PENDING BOOK
+
+
+app.delete("/api/admin/books/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Validate MongoDB ObjectId
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid book ID",
+            });
+        }
+
+        // Find pending book
+        const book = await bookCollection.findOne({
+            _id: new ObjectId(id),
+        });
+
+        if (!book) {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found",
+            });
+        }
+
+        // Admin approval queue should only delete pending books
+        if (book.status !== "pending") {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Only pending books can be deleted from the approval queue",
+            });
+        }
+
+        // Delete pending book
+        const result = await bookCollection.deleteOne({
+            _id: new ObjectId(id),
+            status: "pending",
+        });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Book could not be deleted",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Pending book deleted successfully",
+        });
+
+    } catch (error) {
+        console.error(
+            "DELETE /api/admin/books/:id ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete pending book",
+        });
+    }
+});
+
+
+
+
+// ==========================================
+// ADMIN - UPDATE BOOK STATUS
+// ==========================================
+
+app.patch("/api/admin/books/:id/status", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Validate MongoDB ObjectId
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid book ID",
+            });
+        }
+
+        // Allowed statuses
+        const allowedStatuses = [
+            "approved",
+            "unpublished",
+        ];
+
+        if (!allowedStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid book status",
+            });
+        }
+
+        // Find book
+        const book = await bookCollection.findOne({
+            _id: new ObjectId(id),
+        });
+
+        if (!book) {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found",
+            });
+        }
+
+        // Pending books must go through approval
+        if (book.status === "pending") {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Pending books must be approved first",
+            });
+        }
+
+        // Update status
+        const result =
+            await bookCollection.updateOne(
+                {
+                    _id: new ObjectId(id),
+                },
+                {
+                    $set: {
+                        status: status,
+                        updatedAt: new Date(),
+                    },
+                }
+            );
+
+        if (result.modifiedCount === 0) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Book status could not be updated",
+            });
+        }
+
+        // Get updated book
+        const updatedBook =
+            await bookCollection.findOne({
+                _id: new ObjectId(id),
+            });
+
+        res.status(200).json({
+            success: true,
+            message:
+                "Book status updated successfully",
+            data: updatedBook,
+        });
+
+    } catch (error) {
+        console.error(
+            "PATCH /api/admin/books/:id/status ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message:
+                "Failed to update book status",
+        });
+    }
+});
+
+
+
+
+
+
 //delete book 
 
 app.delete("/api/books/:id", async (req, res) => {
