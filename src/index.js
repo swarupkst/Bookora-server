@@ -8,10 +8,16 @@ const {
 require("dotenv").config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT;
 
 // Middleware
-app.use(cors());
+app.use(
+    cors({
+        origin: "http://localhost:3000",
+        credentials: true,
+    })
+);
+
 app.use(express.json());
 
 // MongoDB
@@ -557,6 +563,235 @@ app.patch("/api/admin/books/:id/status", async (req, res) => {
 
 
 
+
+// =====================================================
+// WISHLIST
+// =====================================================
+
+// Get Wishlist
+app.get("/api/wishlist", async (req, res) => {
+    try {
+        const { userId } = req.query;
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "userId is required",
+            });
+        }
+
+        const wishlist = await database
+            .collection("wishlist")
+            .find({ userId })
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        res.status(200).json({
+            success: true,
+            data: wishlist,
+        });
+    } catch (error) {
+        console.error(
+            "GET /api/wishlist ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to load wishlist",
+        });
+    }
+});
+
+
+// =====================================================
+// Add to Wishlist
+// =====================================================
+
+app.post("/api/wishlist", async (req, res) => {
+    try {
+        const { userId, bookId } = req.body;
+
+        // Validate required fields
+        if (!userId || !bookId) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "userId and bookId are required",
+            });
+        }
+
+        // Validate MongoDB ObjectId
+        if (!ObjectId.isValid(bookId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid book ID",
+            });
+        }
+
+        const wishlistCollection =
+            database.collection("wishlist");
+
+        // Prevent duplicate wishlist entries
+        const existing =
+            await wishlistCollection.findOne({
+                userId,
+                bookId,
+            });
+
+        if (existing) {
+            return res.status(409).json({
+                success: false,
+                message:
+                    "Book is already in your wishlist",
+            });
+        }
+
+        // =================================================
+        // Get complete book information
+        // =================================================
+
+        const book = await bookCollection.findOne({
+            _id: new ObjectId(bookId),
+        });
+
+        if (!book) {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found",
+            });
+        }
+
+        // =================================================
+        // Create wishlist item
+        // =================================================
+
+        const wishlistItem = {
+            userId,
+            bookId,
+
+            // Save complete book snapshot
+            book: {
+                title: book.title || "",
+                author: book.author || "",
+                description:
+                    book.description || "",
+
+                quantity: Number(
+                    book.quantity || 0
+                ),
+
+                deliveryFee: Number(
+                    book.deliveryFee || 0
+                ),
+
+                category:
+                    book.category || "",
+
+                coverImage:
+                    book.coverImage || "",
+
+                librarianId:
+                    book.librarianId || "",
+
+                librarianName:
+                    book.librarianName || "",
+
+                librarianEmail:
+                    book.librarianEmail || "",
+
+                status:
+                    book.status || "",
+
+                createdAt:
+                    book.createdAt || null,
+
+                approvedAt:
+                    book.approvedAt || null,
+            },
+
+            createdAt: new Date(),
+        };
+
+        // Save wishlist
+        const result =
+            await wishlistCollection.insertOne(
+                wishlistItem
+            );
+
+        res.status(201).json({
+            success: true,
+            message:
+                "Book added to wishlist",
+            data: {
+                _id: result.insertedId,
+                ...wishlistItem,
+            },
+        });
+    } catch (error) {
+        console.error(
+            "POST /api/wishlist ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message:
+                "Failed to add book to wishlist",
+        });
+    }
+});
+
+
+// =====================================================
+// Remove from Wishlist
+// =====================================================
+
+app.delete("/api/wishlist", async (req, res) => {
+    try {
+        const { userId, bookId } = req.body;
+
+        if (!userId || !bookId) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "userId and bookId are required",
+            });
+        }
+
+        const result = await database
+            .collection("wishlist")
+            .deleteOne({
+                userId,
+                bookId,
+            });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Wishlist item not found",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message:
+                "Book removed from wishlist",
+        });
+    } catch (error) {
+        console.error(
+            "DELETE /api/wishlist ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message:
+                "Failed to remove book from wishlist",
+        });
+    }
+});
 
 
 
