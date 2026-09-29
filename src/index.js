@@ -1018,6 +1018,187 @@ app.delete("/api/books/:id", async (req, res) => {
     }
 });
 
+
+////get some data 
+
+app.get("/api/dashboard/stats", async (req, res) => {
+    try {
+        const data = await db
+            .collection("stats")
+            .find({})
+            .sort({ type: 1 })
+            .toArray();
+
+        res.json({
+            success: true,
+            data,
+        });
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch stats",
+        });
+    }
+});
+
+
+app.get("/api/dashboard/revenue", async (req, res) => {
+    try {
+        const data = await db
+            .collection("revenue")
+            .find({})
+            .toArray();
+
+        res.json({
+            success: true,
+            data,
+        });
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch revenue data",
+        });
+    }
+});
+
+
+app.get("/api/dashboard/categories", async (req, res) => {
+    try {
+        const data = await db
+            .collection("categories")
+            .find({})
+            .toArray();
+
+        res.json({
+            success: true,
+            data,
+        });
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch category data",
+        });
+    }
+});
+
+
+app.get("/api/dashboard/pending-books", async (req, res) => {
+    try {
+        const data = await db
+            .collection("pendingBooks")
+            .find({})
+            .toArray();
+
+        res.json({
+            success: true,
+            data,
+        });
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch pending books",
+        });
+    }
+});
+
+
+// =====================================================
+// ADMIN DASHBOARD - USERS
+// =====================================================
+
+app.get("/api/dashboard/user", async (req, res) => {
+    try {
+        const data = await database
+            .collection("user")
+            .find({})
+            .toArray();
+
+        res.status(200).json({
+            success: true,
+            data,
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/dashboard/user ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch users",
+        });
+    }
+});
+
+
+// =====================================================
+// ADMIN DASHBOARD - BOOKS
+// =====================================================
+
+app.get("/api/dashboard/books", async (req, res) => {
+    try {
+        const data = await bookCollection
+            .find({})
+            .toArray();
+
+        res.status(200).json({
+            success: true,
+            data,
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/dashboard/books ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch books",
+        });
+    }
+});
+
+
+// =====================================================
+// ADMIN DASHBOARD - TRANSACTIONS
+// =====================================================
+
+app.get("/api/dashboard/transactions", async (req, res) => {
+    try {
+        const data = await database
+            .collection("transactions")
+            .find({})
+            .sort({ _id: -1 })
+            .toArray();
+
+        res.status(200).json({
+            success: true,
+            data,
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/dashboard/transactions ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch transactions",
+        });
+    }
+});
+
 // Start server
 async function run() {
     try {
