@@ -1,11 +1,18 @@
 const express = require("express");
 const cors = require("cors");
+require("dotenv").config();
+
+const Stripe = require("stripe");
+
+const stripe = new Stripe(
+    process.env.STRIPE_SECRET_KEY
+);
+
 const {
     MongoClient,
     ServerApiVersion,
     ObjectId,
 } = require("mongodb");
-require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT;
@@ -38,6 +45,162 @@ const bookCollection = database.collection("books");
 app.get("/", (req, res) => {
     res.send("Bookora Server is running!");
 });
+
+
+
+// =====================================================
+// STRIPE CHECKOUT
+// =====================================================
+
+app.post(
+    "/payments/create-checkout-session",
+    async (req, res) => {
+        try {
+            const { bookId } = req.body;
+
+            // Validate Book ID
+            if (!bookId) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Book ID is required.",
+                });
+            }
+
+            if (!ObjectId.isValid(bookId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid book ID.",
+                });
+            }
+
+            // Find book from MongoDB
+            const book =
+                await bookCollection.findOne({
+                    _id: new ObjectId(bookId),
+                });
+
+            if (!book) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Book not found.",
+                });
+            }
+
+            // Check book status
+            if (book.status !== "approved") {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "This book is not available for delivery.",
+                });
+            }
+
+            // Check quantity
+            const quantity = Number(
+                book.quantity || 0
+            );
+
+            if (quantity < 1) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "This book is currently out of stock.",
+                });
+            }
+
+            // Get delivery fee from MongoDB
+            // This value is already in USD
+            const deliveryFee = Number(
+                book.deliveryFee || 0
+            );
+
+            if (
+                !Number.isFinite(deliveryFee) ||
+                deliveryFee <= 0
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Invalid delivery fee.",
+                });
+            }
+
+            // Stripe uses cents
+            // Example:
+            // $10 = 1000 cents
+            const stripeAmount = Math.round(
+                deliveryFee * 100
+            );
+
+            // Create Stripe Checkout Session
+            const session =
+                await stripe.checkout.sessions.create(
+                    {
+                        mode: "payment",
+
+                        line_items: [
+                            {
+                                price_data: {
+                                    currency: "usd",
+
+                                    product_data: {
+                                        name:
+                                            book.title ||
+                                            "Bookora Book",
+
+                                        description:
+                                            "Bookora book delivery fee",
+                                    },
+
+                                    unit_amount:
+                                        stripeAmount,
+                                },
+
+                                quantity: 1,
+                            },
+                        ],
+
+                        success_url:
+                            `${process.env.FRONTEND_URL}/payment/success` +
+                            `?session_id={CHECKOUT_SESSION_ID}` +
+                            `&bookId=${bookId}`,
+
+                        cancel_url:
+                            `${process.env.FRONTEND_URL}/books/${bookId}`,
+
+                        metadata: {
+                            bookId:
+                                bookId.toString(),
+
+                            title:
+                                book.title || "",
+
+                            deliveryFee:
+                                deliveryFee.toString(),
+                        },
+                    }
+                );
+
+            return res.status(200).json({
+                success: true,
+                url: session.url,
+                sessionId: session.id,
+            });
+        } catch (error) {
+            console.error(
+                "Stripe Checkout Error:",
+                error
+            );
+
+            return res.status(500).json({
+                success: false,
+                message:
+                    error.message ||
+                    "Unable to create Stripe checkout session.",
+            });
+        }
+    }
+);
 
 // Get Books
 app.get("/api/books", async (req, res) => {
